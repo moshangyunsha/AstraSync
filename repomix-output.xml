@@ -1,0 +1,683 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.editorconfig
+.gitignore
+.npmrc
+.prettierignore
+.prettierrc.yaml
+electron-builder.yml
+electron.vite.config.ts
+eslint.config.mjs
+package.json
+README.md
+resources/icon.png
+src/main/db.ts
+src/main/index.ts
+src/main/probe.ts
+src/preload/index.d.ts
+src/preload/index.ts
+src/renderer/index.html
+src/renderer/src/App.vue
+src/renderer/src/assets/main.css
+src/renderer/src/components/Versions.vue
+src/renderer/src/env.d.ts
+src/renderer/src/main.ts
+tsconfig.json
+tsconfig.node.json
+tsconfig.web.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".editorconfig">
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+indent_size = 2
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+</file>
+
+<file path=".gitignore">
+node_modules
+dist
+out
+.DS_Store
+.eslintcache
+*.log*
+</file>
+
+<file path=".npmrc">
+electron_mirror=https://npmmirror.com/mirrors/electron/
+electron_builder_binaries_mirror=https://npmmirror.com/mirrors/electron-builder-binaries/
+</file>
+
+<file path=".prettierignore">
+out
+dist
+pnpm-lock.yaml
+LICENSE.md
+tsconfig.json
+tsconfig.*.json
+</file>
+
+<file path=".prettierrc.yaml">
+singleQuote: true
+semi: false
+printWidth: 100
+trailingComma: none
+</file>
+
+<file path="electron-builder.yml">
+appId: com.electron.app
+productName: astra-sync
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+asarUnpack:
+  - resources/**
+win:
+  executableName: astra-sync
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+mac:
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    - NSCameraUsageDescription: Application requests access to the device's camera.
+    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  notarize: false
+dmg:
+  artifactName: ${name}-${version}.${ext}
+linux:
+  target:
+    - AppImage
+    - snap
+    - deb
+  maintainer: electronjs.org
+  category: Utility
+appImage:
+  artifactName: ${name}-${version}.${ext}
+npmRebuild: false
+publish:
+  provider: generic
+  url: https://example.com/auto-updates
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/
+</file>
+
+<file path="electron.vite.config.ts">
+import { resolve } from 'path'
+import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import vue from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  main: {
+    plugins: [externalizeDepsPlugin()]
+  },
+  preload: {
+    plugins: [externalizeDepsPlugin()]
+  },
+  renderer: {
+    resolve: {
+      alias: {
+        '@renderer': resolve('src/renderer/src')
+      }
+    },
+    plugins: [vue(), tailwindcss()]
+  }
+})
+</file>
+
+<file path="eslint.config.mjs">
+import { defineConfig } from 'eslint/config'
+import tseslint from '@electron-toolkit/eslint-config-ts'
+import eslintConfigPrettier from '@electron-toolkit/eslint-config-prettier'
+import eslintPluginVue from 'eslint-plugin-vue'
+import vueParser from 'vue-eslint-parser'
+
+export default defineConfig(
+  { ignores: ['**/node_modules', '**/dist', '**/out'] },
+  tseslint.configs.recommended,
+  eslintPluginVue.configs['flat/recommended'],
+  {
+    files: ['**/*.vue'],
+    languageOptions: {
+      parser: vueParser,
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true
+        },
+        extraFileExtensions: ['.vue'],
+        parser: tseslint.parser
+      }
+    }
+  },
+  {
+    files: ['**/*.{ts,mts,tsx,vue}'],
+    rules: {
+      'vue/require-default-prop': 'off',
+      'vue/multi-word-component-names': 'off',
+      'vue/block-lang': [
+        'error',
+        {
+          script: {
+            lang: 'ts'
+          }
+        }
+      ]
+    }
+  },
+  eslintConfigPrettier
+)
+</file>
+
+<file path="package.json">
+{
+  "name": "astra-sync",
+  "version": "1.0.0",
+  "description": "An Electron application with Vue and TypeScript",
+  "main": "./out/main/index.js",
+  "author": "example.com",
+  "homepage": "https://electron-vite.org",
+  "scripts": {
+    "format": "prettier --write .",
+    "lint": "eslint --cache .",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "start": "electron-vite preview",
+    "dev": "electron-vite dev",
+    "build": "npm run typecheck && electron-vite build",
+    "postinstall": "electron-builder install-app-deps",
+    "build:unpack": "npm run build && electron-builder --dir",
+    "build:win": "npm run build && electron-builder --win",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:linux": "npm run build && electron-builder --linux"
+  },
+  "dependencies": {
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/utils": "^4.0.0",
+    "@tailwindcss/vite": "^4.3.0",
+    "active-win": "^8.2.1",
+    "better-sqlite3": "^12.10.0",
+    "tailwindcss": "^4.3.0"
+  },
+  "devDependencies": {
+    "@electron-toolkit/eslint-config-prettier": "3.0.0",
+    "@electron-toolkit/eslint-config-ts": "^3.1.0",
+    "@electron-toolkit/tsconfig": "^2.0.0",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.19.1",
+    "@vitejs/plugin-vue": "^6.0.2",
+    "electron": "^39.2.6",
+    "electron-builder": "^26.0.12",
+    "electron-vite": "^5.0.0",
+    "eslint": "^9.39.1",
+    "eslint-plugin-vue": "^10.6.2",
+    "prettier": "^3.7.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.6",
+    "vue": "^3.5.25",
+    "vue-eslint-parser": "^10.2.0",
+    "vue-tsc": "^3.1.6"
+  }
+}
+</file>
+
+<file path="README.md">
+# astra-sync
+
+An Electron application with Vue and TypeScript
+
+## Recommended IDE Setup
+
+- [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar)
+
+## Project Setup
+
+### Install
+
+```bash
+$ npm install
+```
+
+### Development
+
+```bash
+$ npm run dev
+```
+
+### Build
+
+```bash
+# For windows
+$ npm run build:win
+
+# For macOS
+$ npm run build:mac
+
+# For Linux
+$ npm run build:linux
+```
+</file>
+
+<file path="src/main/db.ts">
+import Database from 'better-sqlite3'
+import { app } from 'electron'
+import { join } from 'path'
+
+const dbPath = join(app.getPath('userData'), 'astrasync_buffer.db')
+const db = new Database(dbPath)
+
+// 开启预写式日志与写入同步优化，大幅降低 I/O 延迟
+db.pragma('journal_mode = WAL')
+db.pragma('synchronous = NORMAL')
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS raw_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    raw_text TEXT NOT NULL,
+    parsed_status INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS focus_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    app_name TEXT NOT NULL,
+    window_title TEXT NOT NULL,
+    duration_ms INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`)
+
+export function insertRawLog(text: string): number | bigint {
+  const stmt = db.prepare('INSERT INTO raw_logs (raw_text) VALUES (?)')
+  return stmt.run(text).lastInsertRowid
+}
+
+export function insertFocusLog(appName: string, title: string): number | bigint {
+  const stmt = db.prepare('INSERT INTO focus_logs (app_name, window_title) VALUES (?, ?)')
+  return stmt.run(appName, title).lastInsertRowid
+}
+
+export function getRecentLogs(limit: number = 5) {
+  return db.prepare('SELECT * FROM raw_logs ORDER BY created_at DESC LIMIT ?').all(limit)
+}
+</file>
+
+<file path="src/main/index.ts">
+import { app, shell, BrowserWindow, ipcMain, globalShortcut } from 'electron'
+import { join } from 'path'
+import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import icon from '../../resources/icon.png?asset'
+import { insertRawLog, getRecentLogs } from './db'
+import { startSystemFocusProbe } from './probe'
+
+function createWindow(): void {
+  const mainWindow = new BrowserWindow({
+    width: 900,
+    height: 670,
+    show: false,
+    autoHideMenuBar: true,
+    ...(process.platform === 'linux' ? { icon } : {}),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  mainWindow.on('ready-to-show', () => {
+    mainWindow.show()
+  })
+
+  mainWindow.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url)
+    return { action: 'deny' }
+  })
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  } else {
+    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+  }
+}
+
+app.whenReady().then(() => {
+  electronApp.setAppUserModelId('com.electron')
+
+  app.on('browser-window-created', (_, window) => {
+    optimizer.watchWindowShortcuts(window)
+  })
+
+  // 启动自动化系统焦点探针
+  startSystemFocusProbe()
+
+  // 拦截前端手动日志
+  ipcMain.on('save-log', (event, text) => {
+    const insertId = insertRawLog(text)
+    const recentLogs = getRecentLogs(3)
+    
+    console.log(`\n[数据库] 成功写入日志 ID: ${insertId} -> 内容: ${text}`)
+    console.log('[数据库] 当前最近的 3 条记录:', recentLogs, '\n')
+    
+    const mainWindow = BrowserWindow.fromWebContents(event.sender)
+    if (mainWindow) {
+      mainWindow.hide()
+    }
+  })
+
+  createWindow()
+
+  // 注册全局物理唤醒快捷键
+  globalShortcut.register('Alt+Space', () => {
+    const windows = BrowserWindow.getAllWindows()
+    if (windows.length === 0) {
+      createWindow()
+      return
+    }
+    
+    const mainWindow = windows[0]
+    if (mainWindow.isVisible()) {
+      mainWindow.hide()
+    } else {
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  })
+})
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
+})
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
+})
+</file>
+
+<file path="src/main/probe.ts">
+import { powerMonitor } from 'electron'
+import { insertFocusLog } from './db'
+
+let lastAppName = ''
+let lastWindowTitle = ''
+
+export function startSystemFocusProbe() {
+  console.log('[系统探针] 窗口焦点监听服务已启动...')
+
+  setInterval(async () => {
+    try {
+      // 硬件级休眠拦截：如果键鼠无操作超过 60 秒，直接挂起本次轮询
+      if (powerMonitor.getSystemIdleTime() > 60) return
+
+      // 利用动态 import 规避 CommonJS 与纯 ESM 的模块系统冲突，提取 default 导出
+      const { default: activeWindow } = await import('active-win')
+      const window = await activeWindow()
+      
+      if (!window) return
+
+      // 过滤 AstraSync 自身，防止死循环记录
+      if (window.owner.name === 'astra-sync.exe' || window.title === 'AstraSync') return
+
+      // 仅在焦点发生实际变更时写入数据库
+      if (window.owner.name !== lastAppName || window.title !== lastWindowTitle) {
+        lastAppName = window.owner.name
+        lastWindowTitle = window.title
+
+        const insertId = insertFocusLog(lastAppName, lastWindowTitle)
+        console.log(`[探针录入] ID:${insertId} | 进程: ${lastAppName} | 窗口: ${lastWindowTitle}`)
+      }
+    } catch (error) {
+      console.error('[系统探针] 获取底层窗口句柄失败:', error)
+    }
+  }, 2000)
+}
+</file>
+
+<file path="src/preload/index.d.ts">
+import { ElectronAPI } from '@electron-toolkit/preload'
+
+declare global {
+  interface Window {
+    electron: ElectronAPI
+    api: unknown
+  }
+}
+</file>
+
+<file path="src/preload/index.ts">
+import { contextBridge } from 'electron'
+import { electronAPI } from '@electron-toolkit/preload'
+
+// Custom APIs for renderer
+const api = {}
+
+// Use `contextBridge` APIs to expose Electron APIs to
+// renderer only if context isolation is enabled, otherwise
+// just add to the DOM global.
+if (process.contextIsolated) {
+  try {
+    contextBridge.exposeInMainWorld('electron', electronAPI)
+    contextBridge.exposeInMainWorld('api', api)
+  } catch (error) {
+    console.error(error)
+  }
+} else {
+  // @ts-ignore (define in dts)
+  window.electron = electronAPI
+  // @ts-ignore (define in dts)
+  window.api = api
+}
+</file>
+
+<file path="src/renderer/index.html">
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AstraSync</title>
+    </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
+</file>
+
+<file path="src/renderer/src/App.vue">
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+
+const logInput = ref('')
+const inputRef = ref<HTMLInputElement | null>(null)
+
+// 窗口重新获取焦点时，自动聚焦输入框
+onMounted(() => {
+  inputRef.value?.focus()
+  window.addEventListener('focus', () => {
+    inputRef.value?.focus()
+  })
+})
+
+const submitLog = () => {
+  const text = logInput.value.trim()
+  if (!text) return
+
+  // 通过预加载脚本暴露的 IPC 接口，将数据发送给主进程
+  window.electron.ipcRenderer.send('save-log', text)
+
+  // 提交后清空输入框内容并隐藏窗口（可选体验优化）
+  logInput.value = ''
+}
+</script>
+
+<template>
+  <div class="h-screen w-screen bg-neutral-950 flex flex-col items-center justify-center font-sans text-neutral-200 select-none overflow-hidden">
+    
+    <h1 class="text-5xl font-extrabold tracking-tight bg-linear-to-r from-cyan-400 to-blue-600 bg-clip-text text-transparent mb-12 drop-shadow-lg">
+      AstraSync
+    </h1>
+
+    <div class="w-full max-w-2xl px-6 relative">
+      <input
+        ref="inputRef"
+        v-model="logInput"
+        @keyup.enter="submitLog"
+        type="text"
+        placeholder="输入你的活动轨迹... (如: 阅读安全文献 45m)"
+        class="w-full bg-neutral-900/60 border border-neutral-700/50 rounded-2xl px-8 py-5 text-xl text-neutral-100 placeholder-neutral-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 backdrop-blur-xl transition-all shadow-2xl"
+      />
+      
+      <div class="flex justify-between items-center mt-4 px-2 text-neutral-500 text-xs tracking-widest uppercase font-semibold">
+        <span>Natural Language Input</span>
+        <span>Press <kbd class="bg-neutral-800 px-2 py-1 rounded text-neutral-400">Enter</kbd> to execute</span>
+      </div>
+    </div>
+    
+  </div>
+</template>
+</file>
+
+<file path="src/renderer/src/assets/main.css">
+@import "tailwindcss";
+</file>
+
+<file path="src/renderer/src/components/Versions.vue">
+<script setup lang="ts">
+import { reactive } from 'vue'
+
+const versions = reactive({ ...window.electron.process.versions })
+</script>
+
+<template>
+  <ul class="versions">
+    <li class="electron-version">Electron v{{ versions.electron }}</li>
+    <li class="chrome-version">Chromium v{{ versions.chrome }}</li>
+    <li class="node-version">Node v{{ versions.node }}</li>
+  </ul>
+</template>
+</file>
+
+<file path="src/renderer/src/env.d.ts">
+/// <reference types="vite/client" />
+</file>
+
+<file path="src/renderer/src/main.ts">
+import './assets/main.css'
+
+import { createApp } from 'vue'
+import App from './App.vue'
+
+createApp(App).mount('#app')
+</file>
+
+<file path="tsconfig.json">
+{
+  "files": [],
+  "references": [{ "path": "./tsconfig.node.json" }, { "path": "./tsconfig.web.json" }]
+}
+</file>
+
+<file path="tsconfig.node.json">
+{
+  "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
+  "include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*"],
+  "compilerOptions": {
+    "composite": true,
+    "types": ["electron-vite/node"]
+  }
+}
+</file>
+
+<file path="tsconfig.web.json">
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "jsx": "preserve",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "lib": ["ESNext", "DOM"],
+    "skipLibCheck": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "forceConsistentCasingInFileNames": true,
+    "ignoreDeprecations": "6.0"
+  },
+  "include": [
+    "src/renderer/src/**/*.ts",
+    "src/renderer/src/**/*.vue",
+    "src/renderer/src/**/*.tsx",
+    "src/preload/index.d.ts"
+  ]
+}
+</file>
+
+</files>
