@@ -1,16 +1,64 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, shallowRef, onMounted, nextTick } from 'vue'
+import * as echarts from 'echarts'
 
 const logInput = ref('')
 const inputRef = ref<HTMLInputElement | null>(null)
+const chartRef = ref<HTMLElement | null>(null)
+const chartInstance = shallowRef<echarts.ECharts | null>(null)
+
 const dashboardData = ref({
   timeline: [] as any[],
-  stats: { manual: 0, focusSwitches: 0, git: { commits: 0, insertions: 0, deletions: 0 } }
+  stats: { 
+    manual: 0, 
+    focusSwitches: 0, 
+    allocation: [] as any[],
+    git: { commits: 0, insertions: 0, deletions: 0 } 
+  }
 })
+
+const renderChart = () => {
+  if (!chartRef.value) return
+  if (!chartInstance.value) {
+    chartInstance.value = echarts.init(chartRef.value, 'dark')
+  }
+
+  const chartData = dashboardData.value.stats.allocation.map((item: any) => {
+    const labelMap: Record<string, string> = {
+      'engineering': '工程开发',
+      'learning': '学术阅读',
+      'general': '常规事务'
+    }
+    return {
+      name: labelMap[item.activity_type] || item.activity_type,
+      value: item.total_minutes
+    }
+  })
+
+  chartInstance.value.setOption({
+    backgroundColor: 'transparent',
+    tooltip: { trigger: 'item', formatter: '{b}: {c} 分钟 ({d}%)' },
+    legend: { bottom: '0%', left: 'center', icon: 'circle', itemWidth: 10, textStyle: { color: '#a3a3a3' } },
+    color: ['#06b6d4', '#10b981', '#6366f1', '#f43f5e'],
+    series: [{
+      type: 'pie',
+      radius: ['50%', '75%'],
+      center: ['50%', '45%'],
+      avoidLabelOverlap: false,
+      itemStyle: { borderRadius: 8, borderColor: '#171717', borderWidth: 4 },
+      label: { show: false },
+      data: chartData
+    }]
+  })
+}
 
 const fetchDashboard = async () => {
   try {
     dashboardData.value = await window.electron.ipcRenderer.invoke('fetch-dashboard')
+    await nextTick()
+    if (dashboardData.value.stats.allocation.length > 0) {
+      renderChart()
+    }
   } catch (error) {
     console.error('获取仪表盘数据失败', error)
   }
@@ -19,18 +67,22 @@ const fetchDashboard = async () => {
 onMounted(() => {
   inputRef.value?.focus()
   fetchDashboard()
-  window.addEventListener('focus', () => {
+  
+  window.electron.ipcRenderer.on('refresh-dashboard', () => {
     inputRef.value?.focus()
     fetchDashboard()
   })
 })
 
-const submitLog = () => {
+const submitLog = async () => {
   const text = logInput.value.trim()
   if (!text) return
-  window.electron.ipcRenderer.send('save-log', text)
+
+  await window.electron.ipcRenderer.invoke('save-log', text)
   logInput.value = ''
-  setTimeout(fetchDashboard, 100) // 延迟刷新以确保底层 SQLite 写入完成
+  
+  await fetchDashboard()
+  window.electron.ipcRenderer.send('hide-window')
 }
 
 const formatTime = (isoString: string) => {
@@ -59,42 +111,36 @@ const formatTime = (isoString: string) => {
 
     <main class="flex-1 grid grid-cols-12 gap-6 min-h-0">
       
-      <section class="col-span-4 flex flex-col gap-4">
-        <div class="bg-neutral-900/50 border border-neutral-800 rounded-xl p-5">
-          <h2 class="text-neutral-500 text-xs font-semibold uppercase tracking-wider mb-3">代码产出 (Today)</h2>
-          <div class="flex items-end gap-2">
-            <span class="text-4xl font-bold text-neutral-100">{{ dashboardData.stats.git.commits }}</span>
-            <span class="text-neutral-400 text-sm mb-1">Commits</span>
-          </div>
-          <div class="flex gap-4 mt-2 text-sm">
-            <span class="text-emerald-400 font-mono">+{{ dashboardData.stats.git.insertions }}</span>
-            <span class="text-rose-400 font-mono">-{{ dashboardData.stats.git.deletions }}</span>
-          </div>
+      <section class="col-span-5 flex flex-col gap-4">
+        <div class="bg-neutral-900/50 border border-neutral-800 rounded-xl p-5 shadow-sm h-64 flex flex-col">
+          <h2 class="text-neutral-500 text-xs font-semibold uppercase tracking-wider mb-2 flex-none">时间资源拓扑</h2>
+          <div v-if="dashboardData.stats.allocation.length > 0" ref="chartRef" class="flex-1 w-full"></div>
+          <div v-else class="flex-1 flex items-center justify-center text-neutral-600 text-sm">暂无解析出有效时长的记录</div>
         </div>
 
-        <div class="bg-neutral-900/50 border border-neutral-800 rounded-xl p-5">
-          <h2 class="text-neutral-500 text-xs font-semibold uppercase tracking-wider mb-3">系统活跃</h2>
-          <div class="flex items-end gap-2">
-            <span class="text-3xl font-bold text-neutral-100">{{ dashboardData.stats.focusSwitches }}</span>
-            <span class="text-neutral-400 text-sm mb-1">次焦点切换</span>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-neutral-900/50 border border-neutral-800 rounded-xl p-5 shadow-sm">
+            <h2 class="text-neutral-500 text-xs font-semibold uppercase tracking-wider mb-3">代码产出</h2>
+            <div class="flex items-end gap-2">
+              <span class="text-3xl font-bold text-neutral-100">{{ dashboardData.stats.git.commits }}</span>
+              <span class="text-neutral-400 text-xs mb-1">Commits</span>
+            </div>
           </div>
-        </div>
-
-        <div class="bg-neutral-900/50 border border-neutral-800 rounded-xl p-5">
-          <h2 class="text-neutral-500 text-xs font-semibold uppercase tracking-wider mb-3">手动录入</h2>
-          <div class="flex items-end gap-2">
-            <span class="text-3xl font-bold text-cyan-500">{{ dashboardData.stats.manual }}</span>
-            <span class="text-neutral-400 text-sm mb-1">条记录</span>
+          <div class="bg-neutral-900/50 border border-neutral-800 rounded-xl p-5 shadow-sm">
+            <h2 class="text-neutral-500 text-xs font-semibold uppercase tracking-wider mb-3">系统活跃</h2>
+            <div class="flex items-end gap-2">
+              <span class="text-3xl font-bold text-neutral-100">{{ dashboardData.stats.focusSwitches }}</span>
+              <span class="text-neutral-400 text-xs mb-1">次切换</span>
+            </div>
           </div>
         </div>
       </section>
 
-      <section class="col-span-8 bg-neutral-900/30 border border-neutral-800 rounded-xl p-5 overflow-hidden flex flex-col">
+      <section class="col-span-7 bg-neutral-900/30 border border-neutral-800 rounded-xl p-5 overflow-hidden flex flex-col shadow-inner">
         <h2 class="text-neutral-500 text-xs font-semibold uppercase tracking-wider mb-4 flex-none">Timeline</h2>
         <div class="flex-1 overflow-y-auto pr-2 space-y-4">
           <div v-for="item in dashboardData.timeline" :key="`${item.type}-${item.id}`" class="flex gap-4 items-start group">
             <span class="text-neutral-500 font-mono text-sm mt-0.5 w-12 shrink-0">{{ formatTime(item.created_at) }}</span>
-            
             <div class="flex flex-col relative w-full">
               <span class="text-neutral-200 text-sm font-medium leading-relaxed" 
                     :class="{'text-cyan-400': item.type === 'manual', 'text-emerald-400': item.type === 'git'}">
@@ -105,7 +151,6 @@ const formatTime = (isoString: string) => {
               </span>
             </div>
           </div>
-          
           <div v-if="dashboardData.timeline.length === 0" class="h-full flex items-center justify-center text-neutral-600 text-sm">
             暂无活动数据
           </div>

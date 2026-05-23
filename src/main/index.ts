@@ -2,9 +2,11 @@ import { app, shell, BrowserWindow, ipcMain, globalShortcut } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { insertRawLog, getRecentLogs, getTodayDashboardData } from './db'
+import { insertRawLog, getTodayDashboardData } from './db'
 import { startSystemFocusProbe } from './probe'
 import { startGitCommitProbe } from './git'
+import { parseRawLog } from './parser'
+import { startGraphSyncEngine, closeGraphConnection } from './graph'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -42,32 +44,32 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // 激活所有底层自动化探针
   startSystemFocusProbe()
   startGitCommitProbe()
+  startGraphSyncEngine()
 
-  // 拦截前端自然语言日志提交请求
-  ipcMain.on('save-log', (event, text) => {
+  ipcMain.handle('fetch-dashboard', () => {
+    return getTodayDashboardData()
+  })
+
+  ipcMain.handle('save-log', (_, text) => {
     const insertId = insertRawLog(text)
-    const recentLogs = getRecentLogs(3)
-    
     console.log(`\n[数据库] 成功写入日志 ID: ${insertId} -> 内容: ${text}`)
-    console.log('[数据库] 当前最近的 3 条记录:', recentLogs, '\n')
     
+    parseRawLog(insertId, text)
+    
+    return insertId
+  })
+
+  ipcMain.on('hide-window', (event) => {
     const mainWindow = BrowserWindow.fromWebContents(event.sender)
     if (mainWindow) {
       mainWindow.hide()
     }
   })
 
-  // 注册仪表盘数据拉取接口
-  ipcMain.handle('fetch-dashboard', () => {
-    return getTodayDashboardData()
-  })
-
   createWindow()
 
-  // 注册全局物理唤醒快捷键
   globalShortcut.register('Alt+Space', () => {
     const windows = BrowserWindow.getAllWindows()
     if (windows.length === 0) {
@@ -81,6 +83,7 @@ app.whenReady().then(() => {
     } else {
       mainWindow.show()
       mainWindow.focus()
+      mainWindow.webContents.send('refresh-dashboard')
     }
   })
 
@@ -91,6 +94,7 @@ app.whenReady().then(() => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll()
+  closeGraphConnection()
 })
 
 app.on('window-all-closed', () => {

@@ -5,7 +5,6 @@ import { join } from 'path'
 const dbPath = join(app.getPath('userData'), 'astrasync_buffer.db')
 const db = new Database(dbPath)
 
-// 开启预写式日志与写入同步优化，大幅降低 I/O 延迟
 db.pragma('journal_mode = WAL')
 db.pragma('synchronous = NORMAL')
 
@@ -34,6 +33,17 @@ db.exec(`
     insertions INTEGER DEFAULT 0,
     deletions INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS structured_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    raw_id INTEGER NOT NULL,
+    activity_type TEXT,
+    duration_minutes INTEGER DEFAULT 0,
+    tags TEXT,
+    clean_text TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(raw_id) REFERENCES raw_logs(id)
   )
 `)
 
@@ -57,11 +67,6 @@ export function insertGitLog(repo: string, hash: string, date: string, msg: stri
   }
 }
 
-export function getRecentLogs(limit: number = 5) {
-  return db.prepare('SELECT * FROM raw_logs ORDER BY created_at DESC LIMIT ?').all(limit)
-}
-
-
 export function getTodayDashboardData() {
   const timelineStmt = db.prepare(`
     SELECT 'manual' as type, id, raw_text as title, '' as subtitle, created_at FROM raw_logs WHERE date(created_at, 'localtime') = date('now', 'localtime')
@@ -75,12 +80,21 @@ export function getTodayDashboardData() {
   const manualCount = db.prepare(`SELECT COUNT(*) as count FROM raw_logs WHERE date(created_at, 'localtime') = date('now', 'localtime')`).get() as { count: number }
   const focusCount = db.prepare(`SELECT COUNT(*) as count FROM focus_logs WHERE date(created_at, 'localtime') = date('now', 'localtime')`).get() as { count: number }
   const gitStats = db.prepare(`SELECT COUNT(*) as count, SUM(insertions) as ins, SUM(deletions) as del FROM git_logs WHERE date(created_at, 'localtime') = date('now', 'localtime')`).get() as { count: number, ins: number | null, del: number | null }
+  
+  // 新增针对结构化解析表的按活动类型时长统计
+  const allocationStats = db.prepare(`
+    SELECT activity_type, SUM(duration_minutes) as total_minutes 
+    FROM structured_logs 
+    WHERE date(created_at, 'localtime') = date('now', 'localtime') 
+    GROUP BY activity_type
+  `).all()
 
   return {
     timeline: timelineStmt.all(),
     stats: {
       manual: manualCount.count,
       focusSwitches: focusCount.count,
+      allocation: allocationStats,
       git: {
         commits: gitStats.count,
         insertions: gitStats.ins || 0,
@@ -88,4 +102,13 @@ export function getTodayDashboardData() {
       }
     }
   }
+}
+
+export function updateLogParsedStatus(rawId: number | bigint) {
+  db.prepare('UPDATE raw_logs SET parsed_status = 1 WHERE id = ?').run(rawId)
+}
+
+export function insertStructuredLog(rawId: number | bigint, type: string, duration: number, tags: string, text: string) {
+  const stmt = db.prepare('INSERT INTO structured_logs (raw_id, activity_type, duration_minutes, tags, clean_text) VALUES (?, ?, ?, ?, ?)')
+  return stmt.run(rawId, type, duration, tags, text).lastInsertRowid
 }
